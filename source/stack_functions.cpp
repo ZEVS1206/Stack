@@ -4,10 +4,15 @@
 #include "stack.h"
 #include "stack_functions.h"
 
+static void* recalloc(Stack_Elem_t *pointer, int new_size, size_t size_of_type, int old_size);
+
 const char* get_error(Errors error)
 {
     switch (error)
     {
+        case -6:
+            return "ERROR_OF_NULL_SIZE";
+            break;
         case -5:
             return "ERROR_OF_DESTRUCTOR_STACK";
             break;
@@ -32,14 +37,23 @@ const char* get_error(Errors error)
     }
 }
 
-Errors stack_constructor(struct MyStack *stack, int begin_capacity)
+static void* recalloc(Stack_Elem_t *pointer, int new_size, size_t size_of_type, int old_size)
 {
-    stack->data = (Stack_Elem_t *) calloc(begin_capacity, sizeof(Stack_Elem_t));
-    stack->size = 0;
-    stack->capacity = begin_capacity;
-    Errors error = NO_ERRORS;
-    error = stack_check(&stack);
-    return error;
+    Stack_Elem_t *ptr =(Stack_Elem_t *) realloc(pointer, new_size * size_of_type);
+    if (new_size < old_size)
+    {
+        for (int i = 0; i < new_size; i++)
+        {
+            ptr[i] = 0;
+        }
+    } else
+    {
+        for (int i = old_size; i < new_size; i++)
+        {
+            ptr[i] = 0;
+        }
+    }
+    return (void *) ptr;
 }
 
 Errors stack_check(struct MyStack *stack)
@@ -50,12 +64,57 @@ Errors stack_check(struct MyStack *stack)
     }
     if (stack->size > stack->capacity)
     {
-        return ERROR_OF_REALLOC_STACK;
+        return ERROR_OF_RECALLOC_STACK;
     }
     return NO_ERRORS;
 }
+
 Errors stack_push(struct MyStack *stack, Stack_Elem_t element)
 {
-    stack->data[size] = element;
-    size++;
-    if (size >
+    (stack->data)[stack->size] = element;
+    if (stack->size + 1 > stack->capacity)
+    {
+        (stack->capacity) *= COEFFICIENT;
+        stack->data = (Stack_Elem_t *) recalloc((stack->data), stack->capacity, sizeof(Stack_Elem_t), stack->size);
+    }
+    (stack->size)++;
+    Errors error = stack_check(stack);
+    stack_dump(stack);
+    return error;
+}
+
+Errors stack_pop(struct MyStack *stack, Stack_Elem_t *element)
+{
+    if (stack->size - 1 < 0)
+    {
+        return ERROR_OF_NULL_SIZE;
+    }
+    *element = (stack->data)[stack->size - 1];
+    (stack->data)[stack->size - 1] = 0;
+    (stack->size)--;
+    if ((stack->size - 1) % (stack->capacity) == 0)
+    {
+        stack->capacity /= COEFFICIENT;
+        stack->data = (Stack_Elem_t *) recalloc((stack->data), stack->capacity, sizeof(Stack_Elem_t), stack->size);
+    }
+    Errors error = stack_check(stack);
+    stack_dump(stack);
+    return error;
+}
+
+void stack_dump(struct MyStack *stack)
+{
+    printf("Information about stack:\n");
+    printf("Stack address: %p\n", stack);
+    printf("Data address: %p\n", &(stack->data));
+    printf("Size value: %d\n", stack->size);
+    printf("Capacity value: %d\n", stack->capacity);
+    printf("Stack:\n");
+    for (int i = 0; i < stack->capacity; i++)
+    {
+        printf("%lf ", (stack->data)[i]);
+    }
+    printf("\n\n");
+    return;
+}
+
