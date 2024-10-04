@@ -45,10 +45,6 @@ static void hash_check(const struct MyStack *stack, int capacity)
 
 uint64_t hash(const struct MyStack *stack, int capacity)
 {
-    if (stack == NULL)
-    {
-        STACK_STOP(ERROR_OF_HASH);
-    }
     uint64_t result = 5381;
     for (int i = 0; i < capacity; i++)
     {
@@ -125,10 +121,6 @@ const char* get_error(Errors error)
 
 Errors stack_constructor(struct MyStack *stack, int begin_capacity ON_DEBUG(,const char *name, const char *file, int line))
 {
-    if (stack == NULL)
-    {
-        STACK_STOP(ERROR_OF_NULL_STACK);
-    }
     stack->data = (Stack_Elem_t *) calloc(begin_capacity + 2, sizeof(Stack_Elem_t));
     /*if (stack->data == NULL) */
 
@@ -238,15 +230,8 @@ Errors stack_check(const struct MyStack *stack)
 
 Errors stack_push(struct MyStack *stack, Stack_Elem_t element)
 {
-<<<<<<< Updated upstream
-=======
-    if (stack == NULL)
-    {
-        STACK_STOP(ERROR_OF_NULL_STACK);
-    }
     //hash_protect(stack, stack->capacity);
     hash_check(stack, stack->capacity);
->>>>>>> Stashed changes
     Errors error = STACK_ASSERT(stack);
     (stack->data)[stack->size] = element;
     new_hash(stack, stack->capacity);
@@ -280,10 +265,6 @@ Errors stack_push(struct MyStack *stack, Stack_Elem_t element)
 
 Errors stack_pop(struct MyStack *stack, Stack_Elem_t *element)
 {
-    if (stack == NULL)
-    {
-        STACK_STOP(ERROR_OF_NULL_STACK);
-    }
     hash_check(stack, stack->capacity);
     if (stack->size - 1 < 0)
     {
