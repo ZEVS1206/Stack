@@ -10,7 +10,7 @@
 #define STACK_ASSERT(stack) stack_assert((stack), __FILE__, __LINE__)
 #define STACK_STOP(error) stack_stop((error), __FILE__, __LINE__)
 
-
+static uint64_t hash (const struct MyStack *stack, int capacity);
 static void new_hash(struct MyStack *stack, int capacity);
 static void hash_check(const struct MyStack *stack, int capacity);
 static Errors do_recalloc(struct MyStack *stack, Stack_Elem_t *reserve);
@@ -35,6 +35,10 @@ static void new_hash(struct MyStack *stack, int capacity)
 
 static void hash_check(const struct MyStack *stack, int capacity)
 {
+    if (stack == NULL)
+    {
+        STACK_STOP(ERROR_OF_NULL_STACK);
+    }
     uint64_t result_of_hash = hash(stack, capacity);
     if (result_of_hash != stack->hash_result)
     {
@@ -47,7 +51,11 @@ uint64_t hash(const struct MyStack *stack, int capacity)
 {
     if (stack == NULL)
     {
+<<<<<<< Updated upstream
         STACK_STOP(ERROR_OF_HASH);
+=======
+        STACK_STOP(ERROR_OF_NULL_STACK);
+>>>>>>> Stashed changes
     }
     uint64_t result = 5381;
     for (int i = 0; i < capacity; i++)
@@ -150,9 +158,7 @@ Errors stack_constructor(struct MyStack *stack, int begin_capacity ON_DEBUG(,con
     new_hash(stack, stack->capacity);
     check_canaries(stack);
     Errors error = STACK_ASSERT(stack);
-    printf("|||||||||||\n");
     STACK_DUMP(stack);
-    printf("|||||||||||\n");
     return error;
 }
 
@@ -239,7 +245,10 @@ Errors stack_check(const struct MyStack *stack)
 Errors stack_push(struct MyStack *stack, Stack_Elem_t element)
 {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
     if (stack == NULL)
     {
         STACK_STOP(ERROR_OF_NULL_STACK);

@@ -25,22 +25,7 @@ int main(){
     // printf("%s\n", get_error(error));
     for (int i = 0; i < 50; i++)
     {
-        //printf("stack hash before push=%lu\n", stack.hash_result);
         error = stack_push(&stack, i + 1);
-<<<<<<< Updated upstream
-        stack.data[stack.size - 1] = 6346;
-        printf("stack_hash=%u\n", stack.hash_result);
-=======
-
-        //first vulnerability
-        //error = stack_destructor(&stack);
-        //error = STACK_CTOR(&stack, 2);
-
-        //second vulnerability
-        //stack.data[stack.size - 1] = 13;
-        //stack.hash_result = hash(&stack, stack.capacity);
-        //printf("stack_hash after push=%lu\n", stack.hash_result);
->>>>>>> Stashed changes
     }
     Stack_Elem_t last_element = 0;
     for (int i = 0; i < 40; i++)

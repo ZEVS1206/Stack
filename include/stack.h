@@ -72,7 +72,6 @@ Errors stack_destructor(struct MyStack *stack);
 Errors stack_check(const struct MyStack *stack);
 Errors stack_push(struct MyStack *stack, Stack_Elem_t element);
 Errors stack_pop(struct MyStack *stack, Stack_Elem_t *element);
-uint64_t hash (const struct MyStack *stack, int capacity);
 const char *get_error(Errors error);
 
 #endif
