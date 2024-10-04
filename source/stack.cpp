@@ -150,10 +150,6 @@ Errors stack_constructor(struct MyStack *stack, int begin_capacity ON_DEBUG(,con
 
 Errors stack_destructor(struct MyStack *stack)
 {
-    if (stack == NULL)
-    {
-        STACK_STOP(ERROR_OF_DESTRUCTOR_STACK);
-    }
     if (stack->data == NULL)
     {
         STACK_STOP(ERROR_OF_DESTRUCTOR_STACK);
@@ -209,10 +205,6 @@ static Errors do_recalloc(struct MyStack *stack, Stack_Elem_t *reserve)
 
 Errors stack_check(const struct MyStack *stack)
 {
-    if (stack == NULL)
-    {
-        STACK_STOP(ERROR_OF_NULL_STACK);
-    }
     if (stack->data == NULL)
     {
         return ERROR_OF_USING_DATA;
