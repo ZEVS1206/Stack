@@ -10,14 +10,15 @@
 #define STACK_ASSERT(stack) stack_assert((stack), __FILE__, __LINE__)
 #define STACK_STOP(error) stack_stop((error), __FILE__, __LINE__)
 
-static void hash_protect(struct MyStack *stack, int capacity);
-static Errors hash_check(const struct MyStack *stack, int capacity);
+
+static void new_hash(struct MyStack *stack, int capacity);
+static void hash_check(const struct MyStack *stack, int capacity);
 static Errors do_recalloc(struct MyStack *stack, Stack_Elem_t *reserve);
 static void stack_stop(Errors error, const char *file, int line);
-static Errors stack_assert(struct MyStack *stack, const char *file, int line);
-static void check_canaries(struct MyStack *stack);
+static Errors stack_assert(const struct MyStack *stack, const char *file, int line);
+static void check_canaries(const struct MyStack *stack);
 
-static void check_canaries(struct MyStack *stack)
+static void check_canaries(const struct MyStack *stack)
 {
     if (*(stack->data - 1) != left_canary || *(stack->data + stack->capacity) != right_canary)
     {
@@ -26,25 +27,20 @@ static void check_canaries(struct MyStack *stack)
 }
 
 
-static void hash_protect(struct MyStack *stack, int capacity)
+static void new_hash(struct MyStack *stack, int capacity)
 {
     stack->hash_result = hash(stack, stack->capacity);
-    Errors error = hash_check(stack, stack->capacity);
-    if (error != NO_ERRORS)
-    {
-        STACK_STOP(HASH_DETECTED_HACK_OF_STACK);
-    }
     return;
 }
 
-static Errors hash_check(const struct MyStack *stack, int capacity)
+static void hash_check(const struct MyStack *stack, int capacity)
 {
     uint64_t result_of_hash = hash(stack, capacity);
     if (result_of_hash != stack->hash_result)
     {
-        return HASH_DETECTED_HACK_OF_STACK;
+        STACK_STOP(HASH_DETECTED_HACK_OF_STACK);
     }
-    return NO_ERRORS;
+    return;
 }
 
 uint64_t hash(const struct MyStack *stack, int capacity)
@@ -68,7 +64,7 @@ static void stack_stop(Errors error, const char *file, int line)
     return;
 }
 
-static Errors stack_assert(struct MyStack *stack, const char *file, int line)
+static Errors stack_assert(const struct MyStack *stack, const char *file, int line)
 {
     Errors error = stack_check(stack);
     if (error != NO_ERRORS)
@@ -82,6 +78,9 @@ const char* get_error(Errors error)
 {
     switch (error)
     {
+        case ERROR_OF_NULL_STACK:
+            return "ERROR_OF_NULL_STACK";
+            break;
         case CANARY_DETECTED_HACK_OF_STACK:
             return "CANARY_DETECTED_HACK_OF_STACK";
             break;
@@ -126,6 +125,10 @@ const char* get_error(Errors error)
 
 Errors stack_constructor(struct MyStack *stack, int begin_capacity ON_DEBUG(,const char *name, const char *file, int line))
 {
+    if (stack == NULL)
+    {
+        STACK_STOP(ERROR_OF_NULL_STACK);
+    }
     stack->data = (Stack_Elem_t *) calloc(begin_capacity + 2, sizeof(Stack_Elem_t));
     /*if (stack->data == NULL) */
 
@@ -143,7 +146,8 @@ Errors stack_constructor(struct MyStack *stack, int begin_capacity ON_DEBUG(,con
     stack->file = file;
     stack->line = line;
     #endif
-    hash_protect(stack, stack->capacity);
+    //hash_protect(stack, stack->capacity);
+    new_hash(stack, stack->capacity);
     check_canaries(stack);
     Errors error = STACK_ASSERT(stack);
     printf("|||||||||||\n");
@@ -204,7 +208,8 @@ static Errors do_recalloc(struct MyStack *stack, Stack_Elem_t *reserve)
     // }
     // printf("\n\n");
     stack->data = stack->data + 1;
-    hash_protect(stack, stack->capacity);
+    //hash_protect(stack, stack->capacity);
+    new_hash(stack, stack->capacity);
     check_canaries(stack);
     error = STACK_ASSERT(stack);
     return error;
@@ -212,6 +217,10 @@ static Errors do_recalloc(struct MyStack *stack, Stack_Elem_t *reserve)
 
 Errors stack_check(const struct MyStack *stack)
 {
+    if (stack == NULL)
+    {
+        STACK_STOP(ERROR_OF_NULL_STACK);
+    }
     if (stack->data == NULL)
     {
         return ERROR_OF_USING_DATA;
@@ -229,12 +238,23 @@ Errors stack_check(const struct MyStack *stack)
 
 Errors stack_push(struct MyStack *stack, Stack_Elem_t element)
 {
+<<<<<<< Updated upstream
+=======
+    if (stack == NULL)
+    {
+        STACK_STOP(ERROR_OF_NULL_STACK);
+    }
+    //hash_protect(stack, stack->capacity);
+    hash_check(stack, stack->capacity);
+>>>>>>> Stashed changes
     Errors error = STACK_ASSERT(stack);
     (stack->data)[stack->size] = element;
+    new_hash(stack, stack->capacity);
     if (stack->size + 1 >= stack->capacity)
     {
         stack->old_capacity = stack->capacity;
-        hash_protect(stack, stack->old_capacity);
+        //hash_protect(stack, stack->old_capacity);
+        hash_check(stack, stack->old_capacity);
         (stack->capacity) *= COEFFICIENT;
         Stack_Elem_t *reserve = NULL;
         error = do_recalloc(stack, reserve);
@@ -245,7 +265,8 @@ Errors stack_push(struct MyStack *stack, Stack_Elem_t element)
         }
     }
     (stack->size)++;
-    hash_protect(stack, stack->capacity);
+    //hash_protect(stack, stack->capacity);
+    hash_check(stack, stack->capacity);
     check_canaries(stack);
     // for (int i = 0; i < stack->capacity; i++)
     // {
@@ -259,6 +280,11 @@ Errors stack_push(struct MyStack *stack, Stack_Elem_t element)
 
 Errors stack_pop(struct MyStack *stack, Stack_Elem_t *element)
 {
+    if (stack == NULL)
+    {
+        STACK_STOP(ERROR_OF_NULL_STACK);
+    }
+    hash_check(stack, stack->capacity);
     if (stack->size - 1 < 0)
     {
         STACK_STOP(ERROR_OF_NULL_SIZE);
@@ -268,10 +294,12 @@ Errors stack_pop(struct MyStack *stack, Stack_Elem_t *element)
     printf("last_element=%lf\n\n", *element);
     (stack->data)[stack->size - 1] = 0;
     (stack->size)--;
+    new_hash(stack, stack->capacity);
     if ((stack->capacity) / COEFFICIENT >= (stack->size))
     {
         stack->old_capacity = stack->capacity;
-        hash_protect(stack, stack->old_capacity);
+        //hash_protect(stack, stack->old_capacity);
+        hash_check(stack, stack->old_capacity);
         stack->capacity /= COEFFICIENT;
         Stack_Elem_t *reserve = NULL;
         error = do_recalloc(stack, reserve);
@@ -281,7 +309,8 @@ Errors stack_pop(struct MyStack *stack, Stack_Elem_t *element)
             STACK_STOP(ERROR_OF_DEL_FROM_STACK);
         }
     }
-    hash_protect(stack, stack->capacity);
+    hash_check(stack, stack->capacity);
+    //hash_protect(stack, stack->capacity);
     check_canaries(stack);
     STACK_DUMP(stack);
     error = STACK_ASSERT(stack);

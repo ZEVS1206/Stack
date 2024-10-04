@@ -34,6 +34,7 @@ const Stack_Canary_t right_canary = 0xDEADC;
 
 enum Errors
 {
+    ERROR_OF_NULL_STACK           = -12,
     CANARY_DETECTED_HACK_OF_STACK = -11,
     ERROR_OF_HASH                 = -10,
     HASH_DETECTED_HACK_OF_STACK   = -9,
