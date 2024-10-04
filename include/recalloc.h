@@ -3,6 +3,6 @@
 
 #include "stack.h"
 
-void* recalloc(Stack_Elem_t *pointer, int new_size, size_t size_of_type, int old_size);
+void* recalloc(void *pointer, size_t new_size, size_t size_of_type, size_t old_size);
 
 #endif

@@ -5,10 +5,10 @@
 #include "stack.h"
 #include "recalloc.h"
 
-void* recalloc(Stack_Elem_t *pointer, int new_size, size_t size_of_type, int old_size)
+void* recalloc(void *pointer, size_t new_size, size_t size_of_type, size_t old_size)
 {
-    Stack_Elem_t *ptr =(Stack_Elem_t *) realloc(pointer, new_size * size_of_type);
-    int fill_bytes = (new_size > old_size) ? new_size - old_size : new_size;
+    void *ptr = realloc(pointer, new_size * size_of_type);
+    size_t fill_bytes = (new_size > old_size) ? new_size - old_size : new_size;
     memset(ptr, 0, fill_bytes);
     return ptr;
 }

@@ -5,23 +5,75 @@
 
 #include "stack.h"
 #include "recalloc.h"
-const Stack_Elem_t left_canary = 0xDEADA;
-const Stack_Elem_t right_canary = 0xDEADC;
 
-void stack_stop(Errors error, const char *file, int line)
+
+#define STACK_ASSERT(stack) stack_assert((stack), __FILE__, __LINE__)
+#define STACK_STOP(error) stack_stop((error), __FILE__, __LINE__)
+
+static void hash_protect(struct MyStack *stack, int capacity);
+static Errors hash_check(const struct MyStack *stack, int capacity);
+static Errors do_recalloc(struct MyStack *stack, Stack_Elem_t *reserve);
+static void stack_stop(Errors error, const char *file, int line);
+static Errors stack_assert(struct MyStack *stack, const char *file, int line);
+static void check_canaries(struct MyStack *stack);
+
+static void check_canaries(struct MyStack *stack)
+{
+    if (*(stack->data - 1) != left_canary || *(stack->data + stack->capacity) != right_canary)
+    {
+        STACK_STOP(CANARY_DETECTED_HACK_OF_STACK);
+    }
+}
+
+
+static void hash_protect(struct MyStack *stack, int capacity)
+{
+    stack->hash_result = hash(stack, stack->capacity);
+    Errors error = hash_check(stack, stack->capacity);
+    if (error != NO_ERRORS)
+    {
+        STACK_STOP(HASH_DETECTED_HACK_OF_STACK);
+    }
+    return;
+}
+
+static Errors hash_check(const struct MyStack *stack, int capacity)
+{
+    uint64_t result_of_hash = hash(stack, capacity);
+    if (result_of_hash != stack->hash_result)
+    {
+        return HASH_DETECTED_HACK_OF_STACK;
+    }
+    return NO_ERRORS;
+}
+
+uint64_t hash(const struct MyStack *stack, int capacity)
+{
+    if (stack == NULL)
+    {
+        STACK_STOP(ERROR_OF_HASH);
+    }
+    uint64_t result = 5381;
+    for (int i = 0; i < capacity; i++)
+    {
+        result = (result * 31) ^ (uint64_t)((stack->data)[i]);
+    }
+    return result;
+}
+
+static void stack_stop(Errors error, const char *file, int line)
 {
     fprintf(stderr, "%s\nfile - %s\nline = %d\n", get_error(error), file, line);
     abort();
     return;
 }
 
-Errors stack_assert(struct MyStack *stack, const char *file, int line)
+static Errors stack_assert(struct MyStack *stack, const char *file, int line)
 {
     Errors error = stack_check(stack);
     if (error != NO_ERRORS)
     {
-        fprintf(stderr, "%s\nfile - %s\nline = %d\n", get_error(error), file, line);
-        abort();
+        STACK_STOP(error);
     }
     return NO_ERRORS;
 }
@@ -30,6 +82,15 @@ const char* get_error(Errors error)
 {
     switch (error)
     {
+        case CANARY_DETECTED_HACK_OF_STACK:
+            return "CANARY_DETECTED_HACK_OF_STACK";
+            break;
+        case ERROR_OF_HASH:
+            return "ERROR_OF_HASH";
+            break;
+        case HASH_DETECTED_HACK_OF_STACK:
+            return "HASH_DETECTED_HACK_OF_STACK";
+            break;
         case ERROR_OF_ADD_TO_STACK:
             return "ERROR_OF_ADD_TO_STACK";
             break;
@@ -63,25 +124,27 @@ const char* get_error(Errors error)
     }
 }
 
-#ifdef DEBUG
-Errors stack_constructor(struct MyStack *stack, int begin_capacity, const char *name, const char *file, int line)
-#else
-Errors stack_constructor(struct MyStack *stack, int begin_capacity)
-#endif
+Errors stack_constructor(struct MyStack *stack, int begin_capacity ON_DEBUG(,const char *name, const char *file, int line))
 {
     stack->data = (Stack_Elem_t *) calloc(begin_capacity + 2, sizeof(Stack_Elem_t));
-    *(stack->data) = left_canary;
-    stack->LEFT_CANARY = (const Stack_Elem_t)0xDEADA;
-    *(stack->data + begin_capacity + 1) = right_canary;
-    stack->RIGHT_CANARY = (const Stack_Elem_t)0xDEADC;
-    stack->data = stack->data + 1;
-    stack->size = 0;
+    /*if (stack->data == NULL) */
+
+    *(stack->data) = (const Stack_Elem_t)left_canary;
+    stack->LEFT_CANARY = left_canary;
+    *(stack->data + begin_capacity + 1) = (const Stack_Elem_t)right_canary;
+    stack->RIGHT_CANARY = right_canary;
+
+    stack->data += 1;
+    stack->size  = 0;
     stack->capacity = begin_capacity;
-    #ifdef DEBUG
+    stack->old_capacity = stack->capacity;
+    #ifdef FULL_DEBUG
     stack->name = name;
     stack->file = file;
     stack->line = line;
     #endif
+    hash_protect(stack, stack->capacity);
+    check_canaries(stack);
     Errors error = STACK_ASSERT(stack);
     printf("|||||||||||\n");
     STACK_DUMP(stack);
@@ -114,20 +177,35 @@ Errors stack_destructor(struct MyStack *stack)
 }
 
 
-Errors do_recalloc(struct MyStack *stack, Stack_Elem_t *reserve, int old_capacity)
+static Errors do_recalloc(struct MyStack *stack, Stack_Elem_t *reserve)
 {
     Errors error = STACK_ASSERT(stack);
     reserve = stack->data;
-    stack->data = (Stack_Elem_t *) recalloc((stack->data - 1), stack->capacity + 2, sizeof(Stack_Elem_t), old_capacity);
+    *(stack->data + stack->old_capacity) = 0;
+    stack->data = (Stack_Elem_t *) recalloc((stack->data - 1), stack->capacity + 2, sizeof(Stack_Elem_t), stack->old_capacity);
     if (stack->data == NULL)
     {
         stack->data = reserve;
         STACK_DUMP(stack);
         STACK_STOP(ERROR_OF_RECALLOC_STACK);
     }
-    *(stack->data) = left_canary;
-    *(stack->data + abs(stack->capacity + 2 - old_capacity)) = right_canary;
+    stack->old_capacity = stack->capacity;
+    //*(stack->data) = (const Stack_Elem_t)0xDEADA;
+    // printf("old_capacity=%d\n\n", old_capacity);
+    // printf("new_capacity=%d\n\n", stack->capacity);
+    // printf("capacity=%d\n\n", abs(stack->capacity - old_capacity));
+    //printf("*(stack->data + stack->capacity)=%f\n", *(stack->data + stack->capacity));
+    *(stack->data + stack->capacity + 1) = (const Stack_Elem_t)right_canary;
+    *(stack->data) = (const Stack_Elem_t)left_canary;
+    // printf("STACK:\n");
+    // for (int i = 0; i < stack->capacity + 2; i++)
+    // {
+    //     printf("%f ", (stack->data)[i]);
+    // }
+    // printf("\n\n");
     stack->data = stack->data + 1;
+    hash_protect(stack, stack->capacity);
+    check_canaries(stack);
     error = STACK_ASSERT(stack);
     return error;
 }
@@ -155,10 +233,11 @@ Errors stack_push(struct MyStack *stack, Stack_Elem_t element)
     (stack->data)[stack->size] = element;
     if (stack->size + 1 >= stack->capacity)
     {
-        int old_capacity = stack->capacity;
+        stack->old_capacity = stack->capacity;
+        hash_protect(stack, stack->old_capacity);
         (stack->capacity) *= COEFFICIENT;
         Stack_Elem_t *reserve = NULL;
-        error = do_recalloc(stack, reserve, old_capacity);
+        error = do_recalloc(stack, reserve);
         if (error != NO_ERRORS)
         {
             STACK_DUMP(stack);
@@ -166,6 +245,13 @@ Errors stack_push(struct MyStack *stack, Stack_Elem_t element)
         }
     }
     (stack->size)++;
+    hash_protect(stack, stack->capacity);
+    check_canaries(stack);
+    // for (int i = 0; i < stack->capacity; i++)
+    // {
+    //     printf("%f ", (stack->data)[i]);
+    // }
+    // printf("\n\n");
     STACK_DUMP(stack);
     error = STACK_ASSERT(stack);
     return error;
@@ -182,73 +268,56 @@ Errors stack_pop(struct MyStack *stack, Stack_Elem_t *element)
     printf("last_element=%lf\n\n", *element);
     (stack->data)[stack->size - 1] = 0;
     (stack->size)--;
-    if ((stack->size + 2) % (COEFFICIENT) == 0)
+    if ((stack->capacity) / COEFFICIENT >= (stack->size))
     {
-        int old_capacity = stack->capacity;
+        stack->old_capacity = stack->capacity;
+        hash_protect(stack, stack->old_capacity);
         stack->capacity /= COEFFICIENT;
         Stack_Elem_t *reserve = NULL;
-        error = do_recalloc(stack, reserve, old_capacity);
+        error = do_recalloc(stack, reserve);
         if (error != NO_ERRORS)
         {
             STACK_DUMP(stack);
             STACK_STOP(ERROR_OF_DEL_FROM_STACK);
         }
     }
+    hash_protect(stack, stack->capacity);
+    check_canaries(stack);
     STACK_DUMP(stack);
     error = STACK_ASSERT(stack);
     return error;
 }
 
-#ifdef DEBUG
-void stack_dump(struct MyStack *stack, const char *file, int line)
+void stack_dump(struct MyStack *stack ON_DEBUG(,const char *file, int line))
 {
-    printf("Information about stack:\n");
-    printf("Stack address: %p\n", stack);
+    LESS_DEBUG(printf("||||||||||||||||||||||||\n");)
+    LESS_DEBUG(printf("Information about stack:\n");)
+    ON_DEBUG(printf("Stack address: %p\n", stack));
     if (stack != NULL)
     {
-        printf("Name: %s\n", stack->name);
-        printf("File: %s\n", file);
-        printf("Line: %d\n", line);
-        printf("Data address: %p\n", &(stack->data));
-        printf("Size value: %d\n", stack->size);
-        printf("Capacity value: %d\n", stack->capacity);
-        printf("LEFT_CANARY: %lf\n", *(stack->data - 1));
-        printf("RIGHT_CANARY: %lf\n", *(stack->data + stack->capacity));
+        ON_DEBUG(printf("Name: %s\n", stack->name);)
+        ON_DEBUG(printf("File: %s\n", file);)
+        ON_DEBUG(printf("Line: %d\n", line);)
+        ON_DEBUG(printf("Data address: %p\n", &(stack->data));)
+        LESS_DEBUG(printf("Size value: %d\n", stack->size);)
+        LESS_DEBUG(printf("Hash result: %lu\n", stack->hash_result);)
+        LESS_DEBUG(printf("Capacity value: %d\n", stack->capacity);)
+        LESS_DEBUG(printf("LEFT_CANARY: %lf\n", *(stack->data - 1));)
+        LESS_DEBUG(printf("RIGHT_CANARY: %lf\n", *(stack->data + stack->capacity));)
         if (stack->data != NULL)
         {
-            printf("Stack:\n");
-            for (int i = 0; i < stack->capacity; i++)
-            {
-                printf("%lf ", (stack->data)[i]);
-            }
+            LESS_DEBUG(printf("Stack:\n");)
+            LESS_DEBUG(stack->data -= 1;)
+            LESS_DEBUG(for (int i = 0; i < stack->capacity + 2; i++))
+            LESS_DEBUG({)
+                LESS_DEBUG(printf("%lf ", (stack->data)[i]);)
+            LESS_DEBUG(})
+            LESS_DEBUG(stack->data += 1;)
         }
+        LESS_DEBUG(printf("\n");)
     }
-    printf("\n\n");
+    LESS_DEBUG(printf("||||||||||||||||||||||||\n");)
+    LESS_DEBUG(printf("\n\n");)
     return;
 }
-#else
-void stack_dump(struct MyStack *stack)
-{
-    printf("Information about stack:\n");
-    //printf("Stack address: %p\n", stack);
-    if (stack != NULL)
-    {
-        //printf("Name: %s\n", stack->name);
-        //printf("File: %s\n", file);
-        //printf("Line: %d\n", line);
-        //printf("Data address: %p\n", &(stack->data));
-        printf("Size value: %d\n", stack->size);
-        printf("Capacity value: %d\n", stack->capacity);
-        if (stack->data != NULL)
-        {
-            printf("Stack:\n");
-            for (int i = 0; i < stack->capacity; i++)
-            {
-                printf("%lf ", (stack->data)[i]);
-            }
-        }
-    }
-    printf("\n\n");
-    return;
-}
-#endif
+

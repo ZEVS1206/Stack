@@ -2,66 +2,76 @@
 #define STACK_H
 
 #include <stdarg.h>
-#define COEFFICIENT 2
-#define DEBUG
-#define STACK_ASSERT(stack) stack_assert((stack), __FILE__, __LINE__)
-#define STACK_STOP(error) stack_stop((error), __FILE__, __LINE__)
-
-
-#ifdef DEBUG
-    #define STACK_CTOR(stack, begin_capacity) stack_constructor((stack), (begin_capacity), #stack, __FILE__, __LINE__)
-    #define STACK_DUMP(stack) stack_dump((stack), __FILE__, __LINE__)
-#else
-    #define STACK_CTOR(stack, begin_capacity) stack_constructor((stack), (begin_capacity))
-    #define STACK_DUMP(stack) stack_dump((stack))
-#endif
+#include <stdint.h>
+const float COEFFICIENT = 2;
 
 typedef double Stack_Elem_t;
+typedef double Stack_Canary_t;
+
+//#define DEBUG
+//#define FULL_DEBUG
+
+#ifdef DEBUG
+#define LESS_DEBUG(...) __VA_ARGS__
+    #ifdef FULL_DEBUG
+        #define ON_DEBUG(...) __VA_ARGS__
+    #else
+        #define ON_DEBUG(...)
+    #endif
+#else
+#define ON_DEBUG(...)
+#define LESS_DEBUG(...)
+#endif
+
+const Stack_Canary_t left_canary = 0xDEADA;
+const Stack_Canary_t right_canary = 0xDEADC;
+
+
+#define STACK_CTOR(stack, begin_capacity) stack_constructor((stack), (begin_capacity) ON_DEBUG(,#stack, __FILE__, __LINE__))
+#define STACK_DUMP(stack) stack_dump((stack) ON_DEBUG(,__FILE__, __LINE__))
+
 
 
 enum Errors
 {
-    ERROR_OF_ADD_TO_STACK      = -8,
-    ERROR_OF_DEL_FROM_STACK    = -7,
-    ERROR_OF_NULL_SIZE         = -6,
-    ERROR_OF_DESTRUCTOR_STACK  = -5,
-    ERROR_OF_CHECK_STACK       = -4,
-    ERROR_OF_RECALLOC_STACK    = -3,
-    ERROR_OF_STACK_OVERFLOW    = -2,
-    ERROR_OF_USING_DATA        = -1,
-    NO_ERRORS                  =  0
+    CANARY_DETECTED_HACK_OF_STACK = -11,
+    ERROR_OF_HASH                 = -10,
+    HASH_DETECTED_HACK_OF_STACK   = -9,
+    ERROR_OF_ADD_TO_STACK         = -8,
+    ERROR_OF_DEL_FROM_STACK       = -7,
+    ERROR_OF_NULL_SIZE            = -6,
+    ERROR_OF_DESTRUCTOR_STACK     = -5,
+    ERROR_OF_CHECK_STACK          = -4,
+    ERROR_OF_RECALLOC_STACK       = -3,
+    ERROR_OF_STACK_OVERFLOW       = -2,
+    ERROR_OF_USING_DATA           = -1,
+    NO_ERRORS                     =  0
 };
 
 struct MyStack
 {
-    #ifdef DEBUG
+    Stack_Canary_t LEFT_CANARY;
+    #ifdef FULL_DEBUG
     const char *name;
     const char *file;
     int line;
     #endif
-    Stack_Elem_t LEFT_CANARY;
-    Stack_Elem_t RIGHT_CANARY;
     Stack_Elem_t *data;
     int size;
     int capacity;
+    int old_capacity;
+    uint64_t hash_result;
+    Stack_Canary_t RIGHT_CANARY;
 };
 
-#ifdef DEBUG
-    Errors stack_constructor(struct MyStack *stack, int begin_capacity, const char *name, const char *file, int line);
-    void stack_dump(struct MyStack *stack, const char *file, int line);
-#else
-    Errors stack_constructor(struct MyStack *stack, int begin_capacity);
-    void stack_dump(struct MyStack *stack);
-#endif
+Errors stack_constructor(struct MyStack *stack, int begin_capacity ON_DEBUG(,const char *name, const char *file, int line));
+void stack_dump         (struct MyStack *stack ON_DEBUG(,const char *file, int line));
+
 Errors stack_destructor(struct MyStack *stack);
-
-
-
 Errors stack_check(const struct MyStack *stack);
 Errors stack_push(struct MyStack *stack, Stack_Elem_t element);
 Errors stack_pop(struct MyStack *stack, Stack_Elem_t *element);
-Errors do_recalloc(struct MyStack *stack, Stack_Elem_t *reserve, int old_capacity);
-Errors stack_assert(struct MyStack *stack, const char *file, int line);
-void stack_stop(Errors error, const char *file, int line);
+uint64_t hash (const struct MyStack *stack, int capacity);
 const char *get_error(Errors error);
+
 #endif
