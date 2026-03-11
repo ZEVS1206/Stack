@@ -222,7 +222,6 @@ Errors stack_check(const struct MyStack *stack)
 
 Errors stack_push(struct MyStack *stack, Stack_Elem_t element)
 {
-    //hash_protect(stack, stack->capacity);
     hash_check(stack, stack->capacity);
     Errors error = STACK_ASSERT(stack);
     (stack->data)[stack->size] = element;
